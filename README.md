@@ -199,6 +199,10 @@ Verificar se os secrets do GitHub Actions foram cadastrados corretamente:
 - Criar serviceAccount dedicado para isolar melhor a aplicacao.
 - Migrar a autenticacao do GitHub Actions para OIDC, evitando secrets estaticos.
 - Criar pipeline de release para versionamento e publicacao controlada das entregas.
+- Adicionar estrategia de testes de carga e estresse, seja por pipeline dedicada, uso de solucoes de load testing na AWS ou geracao de carga interna por pod temporario no cluster.
+- Adicionar observabilidade com Datadog, incluindo metricas, logs estruturados, dashboards e alertas para saude da aplicacao, falhas de rollout, Synthetic tests e comportamento do autoscaling.
+- Adotar Terraform para provisionamento e gerenciamento dos recursos de infraestrutura na AWS, aumentando padronizacao, rastreabilidade e controle de mudancas.
+- Evoluir o deploy da aplicacao para um modelo GitOps com ArgoCD, permitindo sincronizacao declarativa, deteccao de drift e promocao mais segura entre ambientes.
 
 ## Escolhas Tecnicas
 - Multi-stage build para reduzir tamanho da imagem final.
