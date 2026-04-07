@@ -6,6 +6,11 @@ on:
       - Build and Push to ECR
     types:
       - completed
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Image tag to deploy
+        required: true
 
 env:
   AWS_REGION: us-west-2
@@ -21,7 +26,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -37,7 +42,8 @@ jobs:
       - name: Deploy manifests to EKS
         run: |
           kubectl apply -f k8s/namespace.yaml
-          sed "s/PLACEHOLDER_IMAGE_TAG/${{ github.event.workflow_run.head_sha }}/g" k8s/deployment.yaml | kubectl apply -f -
+          IMAGE_TAG="${{ github.event.workflow_run.head_sha || inputs.image_tag }}"
+          sed "s/PLACEHOLDER_IMAGE_TAG/${IMAGE_TAG}/g" k8s/deployment.yaml | kubectl apply -f -
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/hpa.yaml
           kubectl rollout status deployment/go-app -n $K8S_NAMESPACE
