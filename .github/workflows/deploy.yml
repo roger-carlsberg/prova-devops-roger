@@ -1,25 +1,27 @@
 name: Deploy to EKS
 
 on:
-  push:
-    branches:
-      - main
-      - fix/devops-prova
-
+  workflow_run:
+    workflows:
+      - Build and Push to ECR
+    types:
+      - completed
 
 env:
   AWS_REGION: us-west-2
-  ECR_REPOSITORY: devops/prova
   EKS_CLUSTER_NAME: EKS-Oregon
   K8S_NAMESPACE: go-app
 
 jobs:
   deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -28,39 +30,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build Docker image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-
-      - name: Scan image with Trivy
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy:0.65.0 \
-            image \
-            --exit-code 1 \
-            --ignore-unfixed \
-            --severity HIGH,CRITICAL \
-            --vuln-type os,library \
-            $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
-      - name: Push Docker image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
       - name: Update kubeconfig
         run: |
           aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_REGION
@@ -68,7 +37,7 @@ jobs:
       - name: Deploy manifests to EKS
         run: |
           kubectl apply -f k8s/namespace.yaml
-          sed "s/PLACEHOLDER_IMAGE_TAG/${GITHUB_SHA}/g" k8s/deployment.yaml | kubectl apply -f -
+          sed "s/PLACEHOLDER_IMAGE_TAG/${{ github.event.workflow_run.head_sha }}/g" k8s/deployment.yaml | kubectl apply -f -
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/hpa.yaml
           kubectl rollout status deployment/go-app -n $K8S_NAMESPACE
