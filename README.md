@@ -20,6 +20,7 @@ Containerizar a aplicacao Go e realizar o deploy em Kubernetes seguindo boas pra
 - Implementado multi-stage build.
 - Separado estagio de build e estagio final de runtime.
 - Reduzido o tamanho da imagem final.
+- Atualizada a imagem base do Go para a linha `1.25` para reduzir vulnerabilidades identificadas no scan de seguranca.
 - Configurado o container para executar com usuario nao-root.
 - Mantida a aplicacao exposta na porta `8080`.
 
@@ -36,12 +37,17 @@ Containerizar a aplicacao Go e realizar o deploy em Kubernetes seguindo boas pra
 - Adicionada autenticacao na AWS via secrets.
 - Adicionado login no Amazon ECR.
 - Adicionado build e push da imagem Docker.
+- Adicionado scan de seguranca da imagem com Trivy antes do push para o ECR.
 - Adicionado deploy automatico dos manifestos no EKS.
 - Adicionada validacao do rollout do Deployment.
+- Adicionado healthcheck final via `curl` executado dentro do cluster, validando o endpoint `/healthz` atraves do Service.
 
 ## Melhorias Aplicadas
 - Troca da tag `latest` por tag imutavel baseada no SHA do commit na pipeline.
 - Criacao de namespace dedicado `go-app` para isolar a aplicacao no cluster.
+- Adicao de scan de seguranca com Trivy antes do push da imagem.
+- Atualizacao da versao base do Go para reduzir vulnerabilidades reportadas pelo scan.
+- Adicao de healthcheck final da aplicacao apos o deploy.
 
 ## Principais Recursos
 - `Dockerfile`: gera a imagem da aplicacao em Go.
@@ -117,12 +123,14 @@ kubectl rollout status deployment/go-app -n go-app
 5. O workflow autentica na AWS.
 6. O workflow realiza login no Amazon ECR.
 7. O workflow executa `docker build`.
-8. O workflow usa o `SHA` do commit como tag imutavel da imagem.
-9. O workflow envia a imagem para o repositorio `devops/prova` no ECR.
-10. O workflow atualiza o kubeconfig para o cluster `EKS-Oregon`.
-11. O workflow cria o namespace `go-app`.
-12. O workflow aplica `Deployment`, `Service` e `HPA` no cluster.
-13. O workflow valida o rollout com `kubectl rollout status deployment/go-app -n go-app`.
+8. O workflow executa o scan de seguranca da imagem com Trivy.
+9. O workflow usa o `SHA` do commit como tag imutavel da imagem.
+10. O workflow envia a imagem para o repositorio `devops/prova` no ECR.
+11. O workflow atualiza o kubeconfig para o cluster `EKS-Oregon`.
+12. O workflow cria o namespace `go-app`.
+13. O workflow aplica `Deployment`, `Service` e `HPA` no cluster.
+14. O workflow valida o rollout com `kubectl rollout status deployment/go-app -n go-app`.
+15. O workflow executa um healthcheck final chamando `http://go-app-service/healthz` de dentro do cluster.
 
 ## Como Validar a Pipeline
 - Acessar a aba `Actions` do fork.
@@ -130,9 +138,11 @@ kubectl rollout status deployment/go-app -n go-app
 - Confirmar sucesso das etapas:
   - `Configure AWS credentials`
   - `Login to Amazon ECR`
+  - `Scan image with Trivy`
   - `Build and push Docker image`
   - `Update kubeconfig`
   - `Deploy manifests to EKS`
+  - `Healthcheck application`
 
 ## Validacao no Cluster
 ```bash
@@ -187,6 +197,11 @@ kubectl get events -n go-app --sort-by=.metadata.creationTimestamp
 Verificar se os secrets do GitHub Actions foram cadastrados corretamente:
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
+
+### Pipeline falha no scan com Trivy
+- Verificar se a imagem base utilizada no build possui vulnerabilidades conhecidas.
+- Verificar se a versao do Go utilizada no builder esta atualizada.
+- Avaliar se a falha ocorreu por vulnerabilidades `HIGH` ou `CRITICAL` no binario gerado.
 
 ### Pipeline nao roda no fork
 - Habilitar Actions no fork.
