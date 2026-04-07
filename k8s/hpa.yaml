@@ -2,6 +2,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: go-app-hpa
+  namespace: go-app
 spec:
   scaleTargetRef:
     apiVersion: apps/v1

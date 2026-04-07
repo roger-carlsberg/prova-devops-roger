@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: go-app
+  namespace: go-app
   labels:
     app: go-app
 spec:
@@ -16,7 +17,7 @@ spec:
     spec:
       containers:
         - name: go-app
-          image: 363838752048.dkr.ecr.us-west-2.amazonaws.com/devops/prova:latest
+          image: 363838752048.dkr.ecr.us-west-2.amazonaws.com/devops/prova:PLACEHOLDER_IMAGE_TAG
           ports:
             - containerPort: 8080
           readinessProbe:
