@@ -5,7 +5,7 @@ metadata:
   labels:
     app: go-app
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: go-app
@@ -15,7 +15,26 @@ spec:
         app: go-app
     spec:
       containers:
-      - name: go-app
-        image: 363838752048.dkr.ecr.<REGIAO>.amazonaws.com/devops/prova:latest
-        ports:
-        - containerPort: 8080
+        - name: go-app
+          image: 363838752048.dkr.ecr.us-west-2.amazonaws.com/devops/prova:latest
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 12
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
