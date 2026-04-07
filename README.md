@@ -136,20 +136,6 @@ kubectl rollout status deployment/go-app -n go-app
 15. O workflow `Deploy to EKS` valida o rollout com `kubectl rollout status deployment/go-app -n go-app`.
 16. O workflow `Deploy to EKS` executa um healthcheck final chamando `http://go-app-service/healthz` de dentro do cluster.
 
-## Como Validar a Pipeline
-- Acessar a aba `Actions` do fork.
-- Validar o sucesso da workflow `Build and Push to ECR`.
-- Validar o sucesso da workflow `Deploy to EKS`.
-- Confirmar sucesso das etapas:
-  - `Configure AWS credentials`
-  - `Login to Amazon ECR`
-  - `Scan image with Trivy`
-  - `Build and push Docker image`
-  - `Update kubeconfig`
-  - `Deploy manifests to EKS`
-  - `Healthcheck application`
-- Caso o `workflow_run` nao dispare automaticamente fora da branch padrao, utilizar o `workflow_dispatch` do deploy informando a tag da imagem.
-
 ## Validacao no Cluster
 ```bash
 kubectl get deploy,svc,hpa,pods -n go-app
@@ -208,11 +194,6 @@ Verificar se os secrets do GitHub Actions foram cadastrados corretamente:
 - Verificar se a imagem base utilizada no build possui vulnerabilidades conhecidas.
 - Verificar se a versao do Go utilizada no builder esta atualizada.
 - Avaliar se a falha ocorreu por vulnerabilidades `HIGH` ou `CRITICAL` no binario gerado.
-
-### Pipeline nao roda no fork
-- Habilitar Actions no fork.
-- Confirmar se a branch usada esta incluida no gatilho do workflow de `build/push`.
-- Utilizar o `workflow_dispatch` do deploy quando o `workflow_run` nao disparar automaticamente fora da branch padrao.
 
 ## Roadmap Futuro
 - Criar serviceAccount dedicado para isolar melhor a aplicacao.
