@@ -33,7 +33,7 @@ Containerizar a aplicacao Go e realizar o deploy em Kubernetes seguindo boas pra
 - Criado HPA com minimo de `2` replicas, maximo de `5` e escala baseada em CPU.
 
 ### CI/CD
-- Criado workflow GitHub Actions funcional.
+- Separadas as responsabilidades em duas workflows GitHub Actions.
 - Adicionada autenticacao na AWS via secrets.
 - Adicionado login no Amazon ECR.
 - Adicionado build e push da imagem Docker.
@@ -41,6 +41,7 @@ Containerizar a aplicacao Go e realizar o deploy em Kubernetes seguindo boas pra
 - Adicionado deploy automatico dos manifestos no EKS.
 - Adicionada validacao do rollout do Deployment.
 - Adicionado healthcheck final via `curl` executado dentro do cluster, validando o endpoint `/healthz` atraves do Service.
+- Adicionado suporte a disparo manual do deploy via `workflow_dispatch`.
 
 ## Melhorias Aplicadas
 - Troca da tag `latest` por tag imutavel baseada no SHA do commit na pipeline.
@@ -48,10 +49,12 @@ Containerizar a aplicacao Go e realizar o deploy em Kubernetes seguindo boas pra
 - Adicao de scan de seguranca com Trivy antes do push da imagem.
 - Atualizacao da versao base do Go para reduzir vulnerabilidades reportadas pelo scan.
 - Adicao de healthcheck final da aplicacao apos o deploy.
+- Separacao entre workflow de `build/push` e workflow de `deploy`.
 
 ## Principais Recursos
 - `Dockerfile`: gera a imagem da aplicacao em Go.
-- `.github/workflows/deploy.yml`: pipeline de build, push e deploy.
+- `.github/workflows/build-push.yml`: workflow responsavel por build, scan e push da imagem no ECR.
+- `.github/workflows/deploy.yml`: workflow responsavel pelo deploy no EKS e healthcheck final.
 - `k8s/deployment.yaml`: define replicas, imagem, probes e recursos.
 - `k8s/service.yaml`: expoe a aplicacao internamente no cluster.
 - `k8s/hpa.yaml`: habilita escalabilidade horizontal por CPU.
@@ -61,8 +64,8 @@ Containerizar a aplicacao Go e realizar o deploy em Kubernetes seguindo boas pra
 ## Pre-Requisitos da Pipeline
 - Repositorio forkado no GitHub.
 - GitHub Actions habilitado no fork.
-- Workflow presente em `.github/workflows/deploy.yml`.
-- Branch utilizada incluida no gatilho do workflow.
+- Workflows presentes em `.github/workflows/build-push.yml` e `.github/workflows/deploy.yml`.
+- Branch utilizada incluida no gatilho do workflow de `build/push`.
 - Secrets configurados no GitHub Actions:
   - `AWS_ACCESS_KEY_ID`
   - `AWS_SECRET_ACCESS_KEY`
@@ -117,24 +120,26 @@ kubectl rollout status deployment/go-app -n go-app
 
 ## Passo a Passo da Pipeline
 1. Fazer push da branch para o fork no GitHub.
-2. Garantir que o workflow `Deploy to EKS` esta habilitado no fork.
+2. Garantir que os workflows `Build and Push to ECR` e `Deploy to EKS` estao habilitados no fork.
 3. Garantir que os secrets `AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY` estao configurados.
-4. O GitHub Actions executa `checkout` do codigo.
-5. O workflow autentica na AWS.
-6. O workflow realiza login no Amazon ECR.
-7. O workflow executa `docker build`.
-8. O workflow executa o scan de seguranca da imagem com Trivy.
-9. O workflow usa o `SHA` do commit como tag imutavel da imagem.
-10. O workflow envia a imagem para o repositorio `devops/prova` no ECR.
-11. O workflow atualiza o kubeconfig para o cluster `EKS-Oregon`.
-12. O workflow cria o namespace `go-app`.
-13. O workflow aplica `Deployment`, `Service` e `HPA` no cluster.
-14. O workflow valida o rollout com `kubectl rollout status deployment/go-app -n go-app`.
-15. O workflow executa um healthcheck final chamando `http://go-app-service/healthz` de dentro do cluster.
+4. O workflow `Build and Push to ECR` executa `checkout` do codigo.
+5. O workflow `Build and Push to ECR` autentica na AWS.
+6. O workflow `Build and Push to ECR` realiza login no Amazon ECR.
+7. O workflow `Build and Push to ECR` executa `docker build`.
+8. O workflow `Build and Push to ECR` executa o scan de seguranca da imagem com Trivy.
+9. O workflow `Build and Push to ECR` usa o `SHA` do commit como tag imutavel da imagem.
+10. O workflow `Build and Push to ECR` envia a imagem para o repositorio `devops/prova` no ECR.
+11. O workflow `Deploy to EKS` pode ser disparado automaticamente via `workflow_run` apos sucesso do build ou manualmente via `workflow_dispatch`.
+12. O workflow `Deploy to EKS` atualiza o kubeconfig para o cluster `EKS-Oregon`.
+13. O workflow `Deploy to EKS` cria o namespace `go-app`.
+14. O workflow `Deploy to EKS` aplica `Deployment`, `Service` e `HPA` no cluster.
+15. O workflow `Deploy to EKS` valida o rollout com `kubectl rollout status deployment/go-app -n go-app`.
+16. O workflow `Deploy to EKS` executa um healthcheck final chamando `http://go-app-service/healthz` de dentro do cluster.
 
 ## Como Validar a Pipeline
 - Acessar a aba `Actions` do fork.
-- Abrir a execucao do workflow `Deploy to EKS`.
+- Validar o sucesso da workflow `Build and Push to ECR`.
+- Validar o sucesso da workflow `Deploy to EKS`.
 - Confirmar sucesso das etapas:
   - `Configure AWS credentials`
   - `Login to Amazon ECR`
@@ -143,6 +148,7 @@ kubectl rollout status deployment/go-app -n go-app
   - `Update kubeconfig`
   - `Deploy manifests to EKS`
   - `Healthcheck application`
+- Caso o `workflow_run` nao dispare automaticamente fora da branch padrao, utilizar o `workflow_dispatch` do deploy informando a tag da imagem.
 
 ## Validacao no Cluster
 ```bash
@@ -205,11 +211,13 @@ Verificar se os secrets do GitHub Actions foram cadastrados corretamente:
 
 ### Pipeline nao roda no fork
 - Habilitar Actions no fork.
-- Confirmar se a branch usada esta incluida no gatilho do workflow.
+- Confirmar se a branch usada esta incluida no gatilho do workflow de `build/push`.
+- Utilizar o `workflow_dispatch` do deploy quando o `workflow_run` nao disparar automaticamente fora da branch padrao.
 
 ## Roadmap Futuro
 - Criar serviceAccount dedicado para isolar melhor a aplicacao.
 - Migrar a autenticacao do GitHub Actions para OIDC, evitando secrets estaticos.
+- Criar pipeline de release para versionamento e publicacao controlada das entregas.
 
 ## Escolhas Tecnicas
 - Multi-stage build para reduzir tamanho da imagem final.
