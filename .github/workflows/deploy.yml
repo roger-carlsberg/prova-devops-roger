@@ -72,3 +72,11 @@ jobs:
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/hpa.yaml
           kubectl rollout status deployment/go-app -n $K8S_NAMESPACE
+
+      - name: Healthcheck application
+        run: |
+          kubectl run curl-test \
+            --rm -i --restart=Never \
+            --image=curlimages/curl:8.12.1 \
+            -n $K8S_NAMESPACE \
+            -- curl -fsS http://go-app-service/healthz
